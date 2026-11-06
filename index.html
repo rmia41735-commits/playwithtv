@@ -5,29 +5,64 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PlayWithTV — Live TV</title>
 <meta name="description" content="Watch live Bangla, sports, news, kids and entertainment TV channels in your browser.">
-<meta name="theme-color" content="#0a0b0f">
+<meta name="theme-color" content="#05060a">
+<meta name="color-scheme" content="dark">
+
+<!-- App icons for every platform -->
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+
+<!-- iPhone / iPad "Add to Home Screen" -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PlayWithTV">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="application-name" content="PlayWithTV">
+<meta name="msapplication-TileColor" content="#05060a">
+<meta name="msapplication-TileImage" content="/icons/icon-192.png">
+
+<!-- Link previews -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="PlayWithTV — Live TV">
+<meta property="og:description" content="Live Bangla, sports, news, kids and entertainment channels.">
+<meta property="og:image" content="https://playwithtv.netlify.app/icons/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<div class="splash" id="splash" aria-hidden="true">
+  <img src="/icons/logo.png" alt="" width="520" height="340">
+  <div class="splash-bar"><i></i></div>
+</div>
+
 <header class="topbar">
   <a class="brand" href="/" aria-label="PlayWithTV home">
-    <span class="brand-mark" aria-hidden="true"><i></i></span>
-    <span class="brand-name">Play<b>With</b>TV</span>
+    <img src="/icons/logo.png" alt="PlayWithTV" width="520" height="340">
   </a>
   <label class="search">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     <input id="search" type="search" placeholder="Search channels…" autocomplete="off" aria-label="Search channels">
     <kbd>/</kbd>
   </label>
-  <div class="clock mono" id="clock" aria-hidden="true">--:--</div>
+  <div class="top-actions">
+    <button class="icon-btn" id="installBtn" title="Install app" aria-label="Install app" hidden><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M5 21h14"/></svg></button>
+    <button class="icon-btn hide-sm" id="helpBtn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
+    <div class="clock mono" id="clock" aria-hidden="true"><span id="clockTime">--:--</span><small id="clockDate"></small></div>
+  </div>
 </header>
 
-<div class="shell">
+<div class="shell" id="shell">
   <nav class="sidebar" aria-label="Categories">
-    <p class="side-title mono">Browse</p>
+    <p class="side-title mono">// Browse</p>
     <ul id="cats" class="cats"></ul>
   </nav>
 
@@ -35,8 +70,17 @@
     <section class="stage">
       <div class="screen" id="screen">
         <video id="video" playsinline controls preload="none"></video>
+        <span class="hud-corner tl" aria-hidden="true"></span><span class="hud-corner tr" aria-hidden="true"></span>
+        <span class="hud-corner bl" aria-hidden="true"></span><span class="hud-corner br" aria-hidden="true"></span>
+        <div class="hud-top" aria-hidden="true">
+          <span class="live-pill"><i></i>LIVE</span>
+          <span class="mono hud-chip" id="hudNum">CH --</span>
+          <span class="mono hud-chip" id="hudStats" hidden></span>
+          <span class="mono hud-chip sleep" id="hudSleep" hidden></span>
+        </div>
+        <div class="osd mono" id="osd" aria-hidden="true"></div>
         <div class="overlay" id="overlay">
-          <div class="spinner" aria-hidden="true"></div>
+          <div class="spinner" aria-hidden="true"><i></i></div>
           <p id="overlayText">Loading channels…</p>
           <div class="overlay-actions" id="overlayActions" hidden>
             <button class="btn" id="retryBtn">Retry</button>
@@ -48,17 +92,38 @@
       <div class="now">
         <div class="now-logo" id="nowLogo"></div>
         <div class="now-meta">
-          <div class="now-tags"><span class="live-pill"><i></i>LIVE</span><span class="mono" id="nowGroup">—</span></div>
+          <div class="now-tags"><span class="mono num" id="nowNum">--</span><span class="mono" id="nowGroup">—</span></div>
           <h1 id="nowName">Select a channel</h1>
         </div>
         <div class="now-actions">
           <button class="icon-btn" id="prevBtn" title="Previous channel (↑)" aria-label="Previous channel"><svg viewBox="0 0 24 24"><path d="M15 18 9 12l6-6"/></svg></button>
           <button class="icon-btn" id="nextBtn" title="Next channel (↓)" aria-label="Next channel"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
-          <button class="icon-btn" id="favBtn" title="Add to favorites" aria-label="Toggle favorite" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></button>
-          <button class="icon-btn" id="pipBtn" title="Picture-in-picture" aria-label="Picture-in-picture"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1" class="fill"/></svg></button>
-          <button class="icon-btn" id="shareBtn" title="Copy link to this channel" aria-label="Copy link"><svg viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>
+          <button class="icon-btn" id="favBtn" title="Add to favorites (S)" aria-label="Toggle favorite" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></button>
+          <button class="icon-btn" id="randomBtn" title="Surprise me (R)" aria-label="Random channel"><svg viewBox="0 0 24 24"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
+          <button class="icon-btn hide-sm" id="theaterBtn" title="Theater mode (T)" aria-label="Theater mode" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9v6M18 9v6"/></svg></button>
+          <button class="icon-btn" id="pipBtn" title="Picture-in-picture (P)" aria-label="Picture-in-picture"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="6" rx="1" class="fill"/></svg></button>
+          <button class="icon-btn" id="shareBtn" title="Share this channel" aria-label="Share"><svg viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>
           <button class="icon-btn" id="fsBtn" title="Fullscreen (F)" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
         </div>
+      </div>
+
+      <div class="controls">
+        <label class="ctl">
+          <span class="mono">Quality</span>
+          <select id="quality" aria-label="Stream quality"><option value="-1">Auto</option></select>
+        </label>
+        <label class="ctl">
+          <span class="mono">Sleep</span>
+          <select id="sleep" aria-label="Sleep timer">
+            <option value="0">Off</option><option value="15">15 min</option><option value="30">30 min</option>
+            <option value="60">1 hour</option><option value="90">90 min</option><option value="120">2 hours</option>
+          </select>
+        </label>
+        <label class="ctl vol">
+          <button class="mute" id="muteBtn" aria-label="Mute" title="Mute (M)"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z" class="fill"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" id="volWaves"/></svg></button>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="1" aria-label="Volume">
+        </label>
+        <div class="signal mono" id="signal" title="Stream status"><i></i><span>Standby</span></div>
       </div>
     </section>
 
@@ -66,6 +131,10 @@
       <div class="browser-head">
         <h2 id="gridTitle">All channels</h2>
         <span class="mono count" id="gridCount"></span>
+        <div class="view-toggle" role="group" aria-label="Layout">
+          <button class="vt" id="viewGrid" aria-pressed="true" title="Grid view"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+          <button class="vt" id="viewList" aria-pressed="false" title="List view"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+        </div>
       </div>
       <div class="chips" id="chips" aria-label="Categories"></div>
       <div class="grid" id="grid" role="list"></div>
@@ -73,12 +142,40 @@
     </section>
 
     <footer class="foot mono">
+      <img src="/icons/logo.png" alt="" class="foot-logo" width="520" height="340" loading="lazy">
       <span id="updated"></span>
-      <span>Shortcuts: <kbd>/</kbd> search · <kbd>↑</kbd><kbd>↓</kbd> channel · <kbd>F</kbd> fullscreen · <kbd>M</kbd> mute</span>
       <span>Streams are provided by third parties. PlayWithTV does not host any content.</span>
     </footer>
   </main>
 </div>
+
+<!-- Keyboard shortcuts -->
+<dialog class="sheet" id="helpDialog" aria-labelledby="helpTitle">
+  <div class="sheet-head"><h3 id="helpTitle">Shortcuts</h3><button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <dl class="keys">
+    <dt><kbd>/</kbd></dt><dd>Search channels</dd>
+    <dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd>Previous / next channel</dd>
+    <dt><kbd>0</kbd>–<kbd>9</kbd></dt><dd>Jump to channel number</dd>
+    <dt><kbd>F</kbd></dt><dd>Fullscreen</dd>
+    <dt><kbd>T</kbd></dt><dd>Theater mode</dd>
+    <dt><kbd>P</kbd></dt><dd>Picture-in-picture</dd>
+    <dt><kbd>M</kbd></dt><dd>Mute / unmute</dd>
+    <dt><kbd>S</kbd></dt><dd>Save to favorites</dd>
+    <dt><kbd>R</kbd></dt><dd>Random channel</dd>
+    <dt><kbd>?</kbd></dt><dd>Show this panel</dd>
+  </dl>
+</dialog>
+
+<!-- iPhone install instructions -->
+<dialog class="sheet" id="iosDialog" aria-labelledby="iosTitle">
+  <div class="sheet-head"><h3 id="iosTitle">Add to Home Screen</h3><button class="icon-btn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  <img src="/apple-touch-icon.png" alt="" class="ios-icon" width="90" height="90">
+  <ol class="steps">
+    <li>Tap the <b>Share</b> button <svg viewBox="0 0 24 24" class="inline"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v8h14v-8"/></svg> in Safari's toolbar.</li>
+    <li>Scroll and choose <b>Add to Home Screen</b>.</li>
+    <li>Tap <b>Add</b> — PlayWithTV opens full screen like an app.</li>
+  </ol>
+</dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
