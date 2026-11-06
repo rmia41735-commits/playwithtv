@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Channel Player</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:system-ui,sans-serif; background:#111; color:#eee; }
+  header { background:#000; padding:.8rem 1rem; display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; }
+  header input[type=file], header input[type=text] { color:#eee; }
+  header input[type=text] { flex:1; min-width:200px; padding:.4rem; background:#1c1c1c; border:1px solid #333; color:#eee; border-radius:4px; }
+  header button { padding:.4rem .9rem; background:#203040; color:#eee; border:1px solid #7cc4ff; border-radius:4px; cursor:pointer; }
+  .layout { display:grid; grid-template-columns:1fr; gap:1rem; padding:1rem; }
+  @media (min-width:900px) { .layout { grid-template-columns:1fr 340px; align-items:start; } .list { position:sticky; top:1rem; } }
+  video { width:100%; aspect-ratio:16/9; background:#000; border-radius:8px; max-height:75vh; }
+  #now { color:#bbb; margin:.5rem 0; min-height:1.2em; }
+  .list { max-height:75vh; overflow-y:auto; display:flex; flex-direction:column; gap:.4rem; }
+  .group { color:#7cc4ff; font-size:.8rem; text-transform:uppercase; margin:.6rem 0 .2rem; letter-spacing:.05em; }
+  .ch { display:flex; align-items:center; gap:.6rem; background:#1c1c1c; border:1px solid #333; border-radius:6px; padding:.5rem .6rem; color:#eee; cursor:pointer; text-align:left; width:100%; }
+  .ch:hover { background:#2a2a2a; }
+  .ch.on { border-color:#7cc4ff; background:#203040; }
+  .ch img { width:36px; height:36px; object-fit:contain; background:#000; border-radius:4px; flex:0 0 36px; }
+  .msg { color:#999; padding:1rem; }
+  .err { color:#ff8080; }
+</style>
+</head>
+<body>
+<header>
+  <strong>Channel Player</strong>
+  <input type="file" id="file" accept=".m3u,.m3u8">
+  <input type="text" id="url" placeholder="...or paste a playlist URL">
+  <button id="loadUrl">Load URL</button>
+</header>
+
+<div class="layout">
+  <div>
+    <video id="player" controls playsinline></video>
+    <p id="now"></p>
+    <p id="status" class="msg">Load a playlist (.m3u or .m3u8) to begin.</p>
+  </div>
+  <div class="list" id="list"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script>
+  const player = document.getElementById('player');
+  const list = document.getElementById('list');
+  const now = document.getElementById('now');
+  const statusEl = document.getElementById('status');
+  let hls = null;
+
+  function parseM3U(text) {
+    const out = [];
+    let info = null;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('#EXTINF')) {
+        info = {
+          name: line.split(',').slice(1).join(',').trim(),
+          group: (line.match(/group-title="([^"]*)"/) || [])[1] || 'Other',
+          logo: (line.match(/tvg-logo="([^"]*)"/) || [])[1] || ''
+        };
+      } else if (!line.startsWith('#')) {
+        out.push({
+          name: info?.name || line,
+          group: info?.group || 'Other',
+          logo: info?.logo || '',
+          url: line
+        });
+        info = null;
+      }
+    }
+    return out;
+  }
+
+  function play(item, el) {
+    document.querySelectorAll('.ch.on').forEach(c => c.classList.remove('on'));
+    el.classList.add('on');
+    now.textContent = 'Now playing: ' + item.name;
+    if (hls) { hls.destroy(); hls = null; }
+    if (window.Hls && Hls.isSupported() && item.url.includes('.m3u8')) {
+      hls = new Hls();
+      hls.loadSource(item.url);
+      hls.attachMedia(player);
+    } else {
+      player.src = item.url;
+    }
+    player.play().catch(() => {});
+  }
+
+  function render(items) {
+    list.textContent = '';
+    if (!items.length) {
+      statusEl.textContent = 'No channels found in that playlist.';
+      return;
+    }
+    statusEl.textContent = items.length + ' channels loaded.';
+    let currentGroup = null;
+    const els = [];
+    items.forEach(item => {
+      if (item.group !== currentGroup) {
+        currentGroup = item.group;
+        const g = document.createElement('div');
+        g.className = 'group';
+        g.textContent = currentGroup;
+        list.appendChild(g);
+      }
+      const btn = document.createElement('button');
+      btn.className = 'ch';
+      const name = document.createElement('span');
+      name.textContent = item.name; // textContent avoids injecting HTML from the playlist
+      if (item.logo) {
+        const img = document.createElement('img');
+        img.src = item.logo;
+        img.alt = '';
+        btn.appendChild(img);
+      }
+      btn.appendChild(name);
+      btn.addEventListener('click', () => play(item, btn));
+      list.appendChild(btn);
+      els.push([item, btn]);
+    });
+    if (els.length) els[0][1].click();
+  }
+
+  function loadText(text) {
+    try { render(parseM3U(text)); }
+    catch { statusEl.className = 'msg err'; statusEl.textContent = 'Could not read that playlist.'; }
+  }
+
+  document.getElementById('file').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => loadText(reader.result);
+    reader.readAsText(f);
+  });
+
+  document.getElementById('loadUrl').addEventListener('click', async () => {
+    const url = document.getElementById('url').value.trim();
+    if (!url) return;
+    statusEl.className = 'msg';
+    statusEl.textContent = 'Loading playlist...';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      loadText(await res.text());
+    } catch {
+      statusEl.className = 'msg err';
+      statusEl.textContent = 'Could not fetch that URL. The server may block browser access (CORS). Try downloading the file and loading it instead.';
+    }
+  });
+</script>
+</body>
+</html>
