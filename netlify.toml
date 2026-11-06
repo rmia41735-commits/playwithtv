@@ -1,0 +1,13 @@
+[build]
+  publish = "."
+
+# Keep old links to the player working
+[[redirects]]
+  from = "/player"
+  to = "/"
+  status = 301
+
+[[redirects]]
+  from = "/player.html"
+  to = "/"
+  status = 301
