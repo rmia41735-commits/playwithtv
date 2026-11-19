@@ -1,0 +1,39 @@
+name: Update Playlist Metadata
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'metadata/channels.json'
+      - 'scripts/build_metadata.py'
+      - '.github/workflows/update-playlist-metadata.yml'
+permissions:
+  contents: write
+concurrency:
+  group: bdix-playlist-metadata
+  cancel-in-progress: false
+jobs:
+  update-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate and generate metadata
+        run: python scripts/build_metadata.py
+      - name: Commit changed metadata only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add generated/channels.json
+          if git diff --cached --quiet; then
+            echo 'No metadata changes.'
+            exit 0
+          fi
+          git commit -m 'Update channel metadata catalog [skip netlify]'
+          git push origin HEAD:main
